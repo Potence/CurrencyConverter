@@ -9,9 +9,9 @@
     <LinearLayout
         android:id="@+id/currency_top"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="46pt"
         android:orientation="horizontal"
-        android:layout_above="@id/currency_bottom"
+        android:layout_alignParentTop="true"
         android:layout_marginStart="0dp"
         android:layout_marginTop="0dp"
         android:layout_marginEnd="0dp"
@@ -37,20 +37,20 @@
             android:layout_marginEnd="16dp"
             android:layout_marginBottom="16dp"
             android:textAlignment="textEnd"
-            android:textColor="@color/black"
-            android:textSize="48dp"
-            android:text="1"/>
+            android:textColor="#575757"
+            android:textSize="40dp"
+            android:text="0"/>
 
     </LinearLayout>
 
     <LinearLayout
         android:id="@+id/currency_bottom"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="46pt"
         android:orientation="horizontal"
-        android:layout_above="@id/buttons_layout"
+        android:layout_below="@id/currency_top"
         android:layout_marginStart="0dp"
-        android:layout_marginTop="12dp"
+        android:layout_marginTop="8dp"
         android:layout_marginEnd="0dp"
         android:layout_marginBottom="0dp">
 
@@ -74,9 +74,9 @@
             android:layout_marginEnd="16dp"
             android:layout_marginBottom="16dp"
             android:textAlignment="textEnd"
-            android:textColor="@color/black"
-            android:textSize="48dp"
-            android:text="1"/>
+            android:textColor="#575757"
+            android:textSize="40dp"
+            android:text="0"/>
 
     </LinearLayout>
 
@@ -87,7 +87,7 @@
         android:orientation="vertical"
         android:layout_alignParentBottom="true"
         android:background="#F1F1F1"
-        android:paddingVertical="16dp"
+        android:paddingVertical="12dp"
         android:id="@+id/buttons_layout">
 
         <LinearLayout
@@ -334,9 +334,9 @@
                 android:textSize="32dp"
                 android:textColor="@color/white"
                 android:layout_margin="12dp"
-                android:id="@+id/button_swap"
+                android:id="@+id/button_equal"
                 android:backgroundTint="#FF9800"
-                android:text="S" />
+                android:text="=" />
 
         </LinearLayout>
 

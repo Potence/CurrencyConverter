@@ -13,19 +13,26 @@ import com.google.android.material.button.MaterialButton;
 
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
+import java.util.Map;
+import java.util.HashMap;
 
-public class MainActivity extends AppCompatActivity implements View.OnClickListener{
+import org.json.JSONObject;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.type.TypeReference;
+import java.io.File;
+
+public class MainActivity extends AppCompatActivity implements View.OnClickListener, View.OnLongClickListener{
 
     TextView currencyTopTv,currencyBottomTv;
     TextView inputTv, outputTv;
     Boolean topSelected, bottomSelected;
     MaterialButton buttonCurrencyTop, buttonCurrencyBottom;
     MaterialButton buttonC,buttonBrackOpen,buttonBrackClose;
-    MaterialButton buttonDivide,buttonMultiply,buttonPlus,buttonMinus,buttonSwap;
+    MaterialButton buttonDivide,buttonMultiply,buttonPlus,buttonMinus,buttonEqual;
     MaterialButton button0,button1,button2,button3,button4,button5,button6,button7,button8,button9;
     MaterialButton buttonAC,buttonDot;
-
     double convertRateTopToBottom, getConvertRateBottomToTop;
+    Map<String, Double> conversionRates;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -35,14 +42,27 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         convertRateTopToBottom = 1 / 3.6724;
         getConvertRateBottomToTop = 3.6724;
 
+        conversionRates = getConversionRates();
+
         // Assign top and bottom text views
         currencyTopTv = findViewById(R.id.currency_top_tv);
         currencyBottomTv = findViewById(R.id.currency_bottom_tv);
+
+        currencyTopTv.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+
+            }
+        });
 
         inputTv = currencyTopTv;
         outputTv = currencyBottomTv;
         topSelected = true;
         bottomSelected = false;
+        inputTv.setTextColor(0xFF000000);
+        inputTv.setTextSize(50);
+        outputTv.setTextColor(0xFF575757);
+        outputTv.setTextSize(40);
 
         // Assign currency select buttons
         assignId(buttonCurrencyTop, R.id.button_top_currency);
@@ -56,7 +76,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         assignId(buttonMultiply,R.id.button_multiply);
         assignId(buttonPlus,R.id.button_plus);
         assignId(buttonMinus,R.id.button_minus);
-        assignId(buttonSwap,R.id.button_swap);
+        assignId(buttonEqual,R.id.button_equal);
         assignId(button0,R.id.button_0);
         assignId(button1,R.id.button_1);
         assignId(button2,R.id.button_2);
@@ -91,13 +111,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
      */
     @Override
     public void onClick(View view) {
-        MaterialButton button =(MaterialButton) view;
+        MaterialButton button = (MaterialButton) view;
         String buttonText = button.getText().toString();
         String current_input = inputTv.getText().toString();
 
         // Change to top or bottom currency
         if (button.equals(buttonCurrencyTop) || button.equals(buttonCurrencyBottom)) {
-            if (button.equals(buttonCurrencyTop)){
+            if (button.equals(buttonCurrencyTop)) {
                 inputTv = currencyTopTv;
                 outputTv = currencyBottomTv;
                 topSelected = true;
@@ -108,46 +128,141 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 topSelected = false;
                 bottomSelected = true;
             }
-        }
-        // handle clears
-        else if (buttonText.equals("AC")){
-            // set top and bottom text views to '0'
-            current_input = "0";
-            currencyTopTv.setText("0");
-            currencyBottomTv.setText("0");
-        }
-        else if (buttonText.equals("C")){
-            // remove 1 character from input text view
-            if (current_input.length() == 1) {
-                current_input = "0";
-                inputTv.setText("0");
-            } else {
-                current_input = current_input.substring(0, (current_input.length() - 1));
-                inputTv.setText(current_input);
-            }
+            inputTv.setTextColor(0xFF000000);
+            inputTv.setTextSize(50);
+            outputTv.setTextColor(0xFF575757);
+            outputTv.setTextSize(40);
         }
         // Handle swap
-        else if (buttonText.equals("S")){
+        else if (buttonText.equals("S")) {
             // swap numbers but keep currently selected in same position
-
-        }
-        else {
-            if (current_input.equals("0")){
-                current_input = buttonText;
-                inputTv.setText(buttonText);
+            if (bottomSelected) {
+                inputTv = currencyTopTv;
+                outputTv = currencyBottomTv;
+                topSelected = true;
+                bottomSelected = false;
             } else {
-                current_input += buttonText;
-                inputTv.setText(current_input);
+                inputTv = currencyBottomTv;
+                outputTv = currencyTopTv;
+                topSelected = false;
+                bottomSelected = true;
             }
+            inputTv.setTextColor(0xFF000000);
+            inputTv.setTextSize(50);
+            outputTv.setTextColor(0xFF575757);
+            outputTv.setTextSize(40);
         }
-
-        if (topSelected) {
-            outputTv.setText(convert(current_input, convertRateTopToBottom));
-        } else {
-            outputTv.setText(convert(current_input, getConvertRateBottomToTop));
+        // Output updating inputs
+        else {
+            // handle clears
+            if (buttonText.equals("AC")) {
+                // set top and bottom text views to '0'
+                current_input = "0";
+                currencyTopTv.setText("0");
+                currencyBottomTv.setText("0");
+            } else if (buttonText.equals("C")) {
+                // remove 1 character from input text view
+                if (current_input.length() == 1) {
+                    current_input = "0";
+                    inputTv.setText("0");
+                } else {
+                    current_input = current_input.substring(0, (current_input.length() - 1));
+                    inputTv.setText(current_input);
+                }
+            }
+            // Handle swap
+            else if (buttonText.equals("S")) {
+                // swap numbers but keep currently selected in same position
+                if (bottomSelected) {
+                    inputTv = currencyTopTv;
+                    outputTv = currencyBottomTv;
+                    topSelected = true;
+                    bottomSelected = false;
+                } else {
+                    inputTv = currencyBottomTv;
+                    outputTv = currencyTopTv;
+                    topSelected = false;
+                    bottomSelected = true;
+                }
+                inputTv.setTextColor(0xFF000000);
+                inputTv.setTextSize(50);
+                outputTv.setTextColor(0xFF575757);
+                outputTv.setTextSize(40);
+            } else {
+                if (current_input.equals("0")) {
+                    current_input = buttonText;
+                    inputTv.setText(buttonText);
+                } else {
+                    current_input += buttonText;
+                    inputTv.setText(current_input);
+                }
+            }
+            // Update output tv
+            if (topSelected) {
+                outputTv.setText(convert(current_input, convertRateTopToBottom));
+            } else {
+                outputTv.setText(convert(current_input, getConvertRateBottomToTop));
+            }
         }
     }
 
+    /**
+     *
+     */
+    public void swapFocusedTextView(){
+        if (button.equals(buttonCurrencyTop)) {
+            inputTv = currencyTopTv;
+            outputTv = currencyBottomTv;
+            topSelected = true;
+            bottomSelected = false;
+        } else {
+            inputTv = currencyBottomTv;
+            outputTv = currencyTopTv;
+            topSelected = false;
+            bottomSelected = true;
+        }
+        inputTv.setTextColor(0xFF000000);
+        inputTv.setTextSize(50);
+        outputTv.setTextColor(0xFF575757);
+        outputTv.setTextSize(40);
+    }
+
+    /**
+     * Read conversionRates.json and return a Map of the currency and the
+     * conversion rate From USD -> Currency as a Double.
+     *
+     * @return
+     */
+    Map<String, Double> getConversionRates(){
+        File file = new File("conversionRates.json");
+        ObjectMapper mapper = new ObjectMapper();
+        Map<String, Double> map;
+        try {
+            map = mapper.readValue
+                    (file, new TypeReference<Map<String, Double>>() {});
+        } catch (Exception e) {
+            System.out.println(e);
+            map = new HashMap<String, Double>();
+        }
+        return map;
+    }
+
+    /**
+     * TODO: implement
+     */
+    void updateConversionRates(){
+        return;
+    }
+
+    /**
+     * Convert an amount in 1 currency to new currency using rate given in
+     * rate variable. Return is Converted amount as a numeric string with
+     * up to 2 decimal places.
+     *
+     * @param AmountToConvert: amount to convert numeric string
+     * @param rate: Conversion rate
+     * @return String with converted amount and up to 2dp
+     */
     String convert(String AmountToConvert, double rate) {
         // Currently assumes AmountToConvert string is numeric, will not work
         // on non numeric inputs
@@ -164,6 +279,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         return df.format(result);
     }
 
+    @Override
+    public boolean onLongClick(View view) {
+        currencyTopTv.setText("0");
+        currencyBottomTv.setText("0");
+        return true;
+    }
+
 //    String getResult(String data){
 //        try{
 //            Context context  = Context.enter();
@@ -178,5 +300,4 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 //            return "Err";
 //        }
 //    }
-
 }
