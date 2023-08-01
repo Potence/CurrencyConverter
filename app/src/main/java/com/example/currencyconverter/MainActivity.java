@@ -7,8 +7,6 @@ import android.view.View;
 import android.widget.TextView;
 
 import com.google.android.material.button.MaterialButton;
-import org.mozilla.javascript.Context;
-import org.mozilla.javascript.Scriptable;
 
 
 import java.math.BigDecimal;
@@ -16,7 +14,6 @@ import java.text.DecimalFormat;
 import java.util.Map;
 import java.util.HashMap;
 
-import org.json.JSONObject;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.core.type.TypeReference;
 import java.io.File;
@@ -51,7 +48,16 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         currencyTopTv.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
+                Boolean topTv = true;
+                setInputTextView(topTv);
+            }
+        });
 
+        currencyBottomTv.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Boolean topTv = false;
+                setInputTextView(topTv);
             }
         });
 
@@ -197,20 +203,28 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     inputTv.setText(current_input);
                 }
             }
+
+            // Arithmetic on current input
+            String computed_input = current_input;
+
             // Update output tv
+
             if (topSelected) {
-                outputTv.setText(convert(current_input, convertRateTopToBottom));
+                outputTv.setText(convert(computed_input, convertRateTopToBottom));
             } else {
-                outputTv.setText(convert(current_input, getConvertRateBottomToTop));
+                outputTv.setText(convert(computed_input, getConvertRateBottomToTop));
             }
         }
     }
 
     /**
-     *
+     * Sets the input to top text view if topTv == true, otherwise sets input
+     * text view to bottom text view. Additionally sets new input text view to
+     * size 50 font, black color, and output text view to size 40 font, and
+     * grey color.
      */
-    public void swapFocusedTextView(){
-        if (button.equals(buttonCurrencyTop)) {
+    void setInputTextView(Boolean topTv){
+        if (topTv) {
             inputTv = currencyTopTv;
             outputTv = currencyBottomTv;
             topSelected = true;
