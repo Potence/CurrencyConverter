@@ -2,6 +2,7 @@ package com.example.currencyconverter;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.TextView;
@@ -70,9 +71,20 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         outputTv.setTextColor(0xFF575757);
         outputTv.setTextSize(40);
 
-        // Assign currency select buttons
-        assignId(buttonCurrencyTop, R.id.button_top_currency);
-        assignId(buttonCurrencyBottom, R.id.button_bottom_currency);
+        // Assign currency changing buttons
+//        buttonCurrencyTop = findViewById(R.id.button_top_currency);
+//        buttonCurrencyBottom = findViewById(R.id.button_bottom_currency);
+//        buttonCurrencyTop.setOnClickListener(v -> {
+//            Intent i = new Intent(MainActivity.this, ScrollingActivity.class);
+//            startActivity(i);
+//        });
+//        buttonCurrencyBottom.setOnClickListener(new View.OnClickListener() {
+//            @Override
+//            public void onClick(View view) {
+//                Intent i = new Intent(getApplicationContext(), ScrollingActivity.class);
+//                startActivity(i);
+//            }
+//        });
 
         // Assign input buttons
         assignId(buttonC,R.id.button_c);
