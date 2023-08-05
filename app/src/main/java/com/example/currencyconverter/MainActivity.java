@@ -5,17 +5,27 @@ import androidx.appcompat.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.TextView;
+import android.widget.Toast;
 
+import com.android.volley.RequestQueue;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.JsonObjectRequest;
+import com.android.volley.toolbox.Volley;
 import com.google.android.material.button.MaterialButton;
-
 
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
+import java.util.Date;
 import java.util.Map;
 import java.util.HashMap;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.core.type.TypeReference;
+
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.io.File;
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener, View.OnLongClickListener{
@@ -31,6 +41,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     double convertRateTopToBottom, convertRateBottomToTop;
     Map<String, Double> conversionRates;
     int MAX_INPUT_LENGTH = 54;
+    String BASE_CURRENCY = "USD";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -63,19 +74,17 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         });
 
         // Assign currency changing buttons
-//        buttonCurrencyTop = findViewById(R.id.button_top_currency);
-//        buttonCurrencyBottom = findViewById(R.id.button_bottom_currency);
-//        buttonCurrencyTop.setOnClickListener(v -> {
-//            Intent i = new Intent(MainActivity.this, ScrollingActivity.class);
-//            startActivity(i);
-//        });
-//        buttonCurrencyBottom.setOnClickListener(new View.OnClickListener() {
-//            @Override
-//            public void onClick(View view) {
-//                Intent i = new Intent(getApplicationContext(), ScrollingActivity.class);
-//                startActivity(i);
-//            }
-//        });
+        buttonCurrencyTop = findViewById(R.id.button_top_currency);
+        buttonCurrencyBottom = findViewById(R.id.button_bottom_currency);
+        buttonCurrencyTop.setOnClickListener(v -> {
+            retrieveConversionRates();
+        });
+        buttonCurrencyBottom.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                retrieveConversionRates();
+            }
+        });
 
         // Assign input buttons
         assignId(buttonC,R.id.button_c);
@@ -254,10 +263,38 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     /**
-     * TODO: implement
+     * TODO: Fully implement to store conversionRates
+     * Currently retrieves conversion rates but does not store them.
      */
-    void updateConversionRates(){
-        return;
+    void retrieveConversionRates(){
+        RequestQueue requestQueue = Volley.newRequestQueue(MainActivity.this);
+        String baseUrl = "https://openexchangerates.org/api/latest.json?app_id=5bc0d18d478949309c7b5c9f550bbcce&base=" + BASE_CURRENCY;
+
+        //Request a JSON object from baseUrl
+        JsonObjectRequest jsonConversionRatesRequest = new JsonObjectRequest(baseUrl,
+                new Response.Listener<JSONObject>() {
+                    @Override
+                    public void onResponse(JSONObject response) {
+                        Date dateRecvTime;
+                        try {
+                            Long timestamp = response.getLong("timestamp");
+                            dateRecvTime = new Date(timestamp * 1000);
+                        } catch (JSONException e) {
+                            throw new RuntimeException(e);
+                        }
+
+                        Toast.makeText(MainActivity.this, "Updated Conversion Rates at: " + dateRecvTime.toString(), Toast.LENGTH_LONG).show();
+                    }
+                },
+                new Response.ErrorListener() {
+                    @Override
+                    public void onErrorResponse(VolleyError error) {
+                        Toast.makeText(MainActivity.this, "Error updating Conversion rates", Toast.LENGTH_SHORT).show();
+                    }
+                });
+
+        // Add the request to the RequestQueue.
+        requestQueue.add(jsonConversionRatesRequest);
     }
 
     /**
