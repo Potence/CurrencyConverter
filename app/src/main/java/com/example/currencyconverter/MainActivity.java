@@ -65,34 +65,21 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         currencyTopTv = findViewById(R.id.currency_top_tv);
         currencyBottomTv = findViewById(R.id.currency_bottom_tv);
 
-        currencyTopTv.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                boolean topTv = true;
-                setInputTextView(topTv);
-            }
+        currencyTopTv.setOnClickListener(view -> {
+            boolean topTv = true;
+            setInputTextView(topTv);
         });
 
-        currencyBottomTv.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                boolean topTv = false;
-                setInputTextView(topTv);
-            }
+        currencyBottomTv.setOnClickListener(view -> {
+            boolean topTv = false;
+            setInputTextView(topTv);
         });
 
         // Assign currency changing buttons
         buttonCurrencyTop = findViewById(R.id.button_top_currency);
         buttonCurrencyBottom = findViewById(R.id.button_bottom_currency);
-        buttonCurrencyTop.setOnClickListener(v -> {
-            load_conversionRates();
-        });
-        buttonCurrencyBottom.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                retrieveLiveConversionRates();
-            }
-        });
+        buttonCurrencyTop.setOnClickListener(v -> load_conversionRates());
+        buttonCurrencyBottom.setOnClickListener(view -> retrieveLiveConversionRates());
 
         // Assign input buttons
         assignId(buttonC,R.id.button_c);
@@ -198,7 +185,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         } else {
             outputTv.setText(convertCurrency(computed_input, convertRateBottomToTop));
         }
-        }
     }
 
     /**
@@ -299,7 +285,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     @Override
                     public void onResponse(JSONObject response) {
                         // Message of updated conversion rates
-                        long timestamp = 0;
+                        long timestamp;
                         try {
                             timestamp = response.getLong("timestamp");
                         } catch (JSONException e) {
@@ -426,7 +412,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             return conversionRatesMap;
         }
 
-        conversionRatesMap = new HashMap<String, Double>();
+        conversionRatesMap = new HashMap<>();
 
         // Put all of data into Map<String, Double>
         for (Iterator<String> it = jsonConversionRatesNoWrapper.keys(); it.hasNext(); ) {
