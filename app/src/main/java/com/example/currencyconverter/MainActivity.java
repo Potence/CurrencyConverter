@@ -7,6 +7,7 @@ import android.view.View;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.android.volley.DefaultRetryPolicy;
 import com.android.volley.RequestQueue;
 import com.android.volley.Response;
 import com.android.volley.VolleyError;
@@ -14,9 +15,16 @@ import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.Volley;
 import com.google.android.material.button.MaterialButton;
 
+import java.io.BufferedReader;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.math.BigDecimal;
+import java.nio.file.Files;
 import java.text.DecimalFormat;
 import java.util.Date;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.HashMap;
 
@@ -28,7 +36,7 @@ import org.json.JSONObject;
 
 import java.io.File;
 
-public class MainActivity extends AppCompatActivity implements View.OnClickListener, View.OnLongClickListener{
+public class MainActivity extends AppCompatActivity implements View.OnClickListener{
 
     TextView currencyTopTv,currencyBottomTv;
     TextView inputTv, outputTv;
@@ -39,9 +47,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     MaterialButton button0,button1,button2,button3,button4,button5,button6,button7,button8,button9;
     MaterialButton buttonAC,buttonDot;
     double convertRateTopToBottom, convertRateBottomToTop;
-    Map<String, Double> conversionRates;
-    int MAX_INPUT_LENGTH = 54;
-    String BASE_CURRENCY = "USD";
+    Map<String, Double> conversionRatesMap;
+    JSONObject jsonConversionRatesWrapper;
+    private static final int MAX_INPUT_LENGTH = 54;
+    private static final String BASE_CURRENCY = "USD";
+    private static final String CONVERSION_RATES_LOCAL_FILE = "conversionRatesWrapper.json";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -51,7 +61,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         convertRateTopToBottom = 1 / 3.6724;
         convertRateBottomToTop = 3.6724;
 
-        conversionRates = getAllConversionRates();
+
+        getAllConversionRates();
 
         // Assign top and bottom text views
         currencyTopTv = findViewById(R.id.currency_top_tv);
@@ -77,12 +88,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         buttonCurrencyTop = findViewById(R.id.button_top_currency);
         buttonCurrencyBottom = findViewById(R.id.button_bottom_currency);
         buttonCurrencyTop.setOnClickListener(v -> {
-            retrieveConversionRates();
+            retrieveLiveConversionRates();
         });
         buttonCurrencyBottom.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                retrieveConversionRates();
+                retrieveLiveConversionRates();
             }
         });
 
@@ -211,9 +222,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             // Update output tv
 
             if (topSelected) {
-                outputTv.setText(convert(computed_input, convertRateTopToBottom));
+                outputTv.setText(convertCurrency(computed_input, convertRateTopToBottom));
             } else {
-                outputTv.setText(convert(computed_input, convertRateBottomToTop));
+                outputTv.setText(convertCurrency(computed_input, convertRateBottomToTop));
             }
         }
     }
@@ -248,8 +259,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
      *
      * @return
      */
-    Map<String, Double> getAllConversionRates(){
-        File file = new File("conversionRates.json");
+    Map<String, Double> getSavedConversionRates(){
+        File file = new File(getBaseContext().getFilesDir(), "conversionRatesMap");
         ObjectMapper mapper = new ObjectMapper();
         Map<String, Double> map;
         try {
@@ -263,41 +274,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     /**
-     * TODO: Fully implement to store conversionRates
-     * Currently retrieves conversion rates but does not store them.
-     */
-    void retrieveConversionRates(){
-        RequestQueue requestQueue = Volley.newRequestQueue(MainActivity.this);
-        String baseUrl = "https://openexchangerates.org/api/latest.json?app_id=5bc0d18d478949309c7b5c9f550bbcce&base=" + BASE_CURRENCY;
-
-        //Request a JSON object from baseUrl
-        JsonObjectRequest jsonConversionRatesRequest = new JsonObjectRequest(baseUrl,
-                new Response.Listener<JSONObject>() {
-                    @Override
-                    public void onResponse(JSONObject response) {
-                        Date dateRecvTime;
-                        try {
-                            Long timestamp = response.getLong("timestamp");
-                            dateRecvTime = new Date(timestamp * 1000);
-                        } catch (JSONException e) {
-                            throw new RuntimeException(e);
-                        }
-
-                        Toast.makeText(MainActivity.this, "Updated Conversion Rates at: " + dateRecvTime.toString(), Toast.LENGTH_LONG).show();
-                    }
-                },
-                new Response.ErrorListener() {
-                    @Override
-                    public void onErrorResponse(VolleyError error) {
-                        Toast.makeText(MainActivity.this, "Error updating Conversion rates", Toast.LENGTH_SHORT).show();
-                    }
-                });
-
-        // Add the request to the RequestQueue.
-        requestQueue.add(jsonConversionRatesRequest);
-    }
-
-    /**
      * Convert an amount in 1 currency to new currency using rate given in
      * rate variable. Return is Converted amount as a numeric string with
      * up to 2 decimal places.
@@ -306,7 +282,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
      * @param rate: Conversion rate
      * @return String with converted amount and up to 2dp
      */
-    String convert(String AmountToConvert, double rate) {
+    String convertCurrency(String AmountToConvert, double rate) {
         // Currently assumes AmountToConvert string is numeric, will not work
         // on non numeric inputs
         // TODO: handle non numeric inputs
@@ -322,11 +298,153 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         return df.format(result);
     }
 
-    @Override
-    public boolean onLongClick(View view) {
-        currencyTopTv.setText("0");
-        currencyBottomTv.setText("0");
-        return true;
+    /**
+     * TODO: Fully implement to store conversionRates
+     * Currently retrieves conversion rates wrapper with conversion rates
+     * stored in "rates".
+     *
+     * @return JSONObject wrapper of conversion rates
+     */
+    JSONObject retrieveLiveConversionRates(){
+        final JSONObject[] curRatesWrapper = new JSONObject[1];
+        RequestQueue requestQueue = Volley.newRequestQueue(MainActivity.this);
+        String baseUrl = "https://openexchangerates.org/api/latest.json?app_id=5bc0d18d478949309c7b5c9f550bbcce&base=" + BASE_CURRENCY;
+
+        //Request a JSON object from baseUrl
+        JsonObjectRequest jsonConversionRatesRequest = new JsonObjectRequest(baseUrl,
+                new Response.Listener<JSONObject>() {
+                    @Override
+                    public void onResponse(JSONObject response) {
+                        Date dateRecvTime;
+                        try {
+                            curRatesWrapper[0] = new JSONObject(response.toString());
+                            long timestamp = response.getLong("timestamp");
+                            dateRecvTime = new Date(timestamp * 1000);
+
+                        } catch (JSONException e) {
+                            throw new RuntimeException(e);
+                        }
+
+                        Toast.makeText(MainActivity.this, "Updated Conversion Rates at: " + dateRecvTime.toString(), Toast.LENGTH_LONG).show();
+                    }
+                },
+                new Response.ErrorListener() {
+                    @Override
+                    public void onErrorResponse(VolleyError error) {
+                        Toast.makeText(MainActivity.this, "Error updating Conversion rates", Toast.LENGTH_SHORT).show();
+                    }
+                });
+
+        // retry request one time after 10s
+        jsonConversionRatesRequest.setRetryPolicy(new DefaultRetryPolicy(10 * 1000, 1, 1.0f));
+
+        // Add the request to the RequestQueue.
+        requestQueue.add(jsonConversionRatesRequest);
+
+        return curRatesWrapper[0];
+    }
+
+    /**
+     * Reads json file with locally saved conversionRates returns a wrapper
+     * JSONObject with conversion rates stored in "rates" entry. If file does
+     * not exist will return empty json.
+     *
+     * @return JSONObject with conversion rates in "rates"
+     */
+    JSONObject retrieveLocalConversionRates() {
+        JSONObject jsonReturnVal;
+        String curLine = "";
+        StringBuilder jsonString = new StringBuilder();
+
+        File inFile = new File(getApplicationContext().getFilesDir() + CONVERSION_RATES_LOCAL_FILE);
+
+        if (inFile.exists() && inFile.canRead()){ /* File exists and is read to json and returned */
+            try {
+                BufferedReader fileReader = Files.newBufferedReader(inFile.toPath());
+
+                while (! (curLine = fileReader.readLine()).isEmpty()) {
+                    jsonString.append(curLine);
+                }
+
+                fileReader.close();
+
+                jsonReturnVal = new JSONObject(jsonString.toString());
+
+                return jsonReturnVal;
+
+            } catch (IOException | JSONException e) {
+                System.out.println("Failed to read file: " + inFile.toPath().toString());
+                throw new RuntimeException(e);
+            }
+        }
+        else { /* File does not exists and empty json is returned */
+            jsonReturnVal = new JSONObject();
+            return jsonReturnVal;
+        }
+
+    }
+
+    /**
+     * Store jsonConversionRatesWrapped as a json file in filesDir under
+     * filename stored in local const variable CONVERSION_RATES_LOCAL_FILE
+     *
+     * @param jsonConversionRatesWrapped a json with conversion rates
+     */
+    void storeConversionRates(JSONObject jsonConversionRatesWrapped){
+        Toast.makeText(MainActivity.this, getApplicationContext().getFilesDir() + CONVERSION_RATES_LOCAL_FILE, Toast.LENGTH_LONG).show();
+        File outFile = new File(getApplicationContext().getFilesDir() + CONVERSION_RATES_LOCAL_FILE);
+
+        // Create file if does not exist
+        if (! (outFile.exists() && outFile.isFile() && outFile.canWrite())){
+            try {
+                // create file and give read and write privileges
+                outFile.createNewFile();
+                outFile.setWritable(true);
+                outFile.setReadable(true);
+            } catch (IOException e) {
+                System.out.println("Failed to create file: " + getApplicationContext().getFilesDir() + CONVERSION_RATES_LOCAL_FILE );
+                throw new RuntimeException(e);
+            }
+        }
+
+        //Write file
+        try {
+            FileWriter fileWriter = new FileWriter(outFile);
+            fileWriter.write(jsonConversionRatesWrapped.toString());
+            fileWriter.close();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     *
+     *
+     * @param jsonConversionRatesWrapper:
+     * @return
+     */
+    Map<String, Double> jsonConversionRatesToMap(JSONObject jsonConversionRatesWrapper){
+        // Remove wrapper and get "rates"
+        JSONObject jsonConversionRatesNoWrapper;
+        try {
+            jsonConversionRatesNoWrapper = jsonConversionRatesWrapper.getJSONObject("rates");
+        } catch (JSONException e) {
+            throw new RuntimeException(e);
+        }
+
+        Map<String, Double> conversionRatesMap = new HashMap<String, Double>();
+
+        // Put all of data into Map<String, Double>
+        for (Iterator<String> it = jsonConversionRatesNoWrapper.keys(); it.hasNext(); ) {
+            String x = it.next();
+            try {
+                conversionRatesMap.put(x, jsonConversionRatesNoWrapper.getDouble(x));
+            } catch (JSONException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        return conversionRatesMap;
     }
 
 //    String getResult(String data){
