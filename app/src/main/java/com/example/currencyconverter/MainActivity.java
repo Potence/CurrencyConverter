@@ -61,9 +61,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         convertRateTopToBottom = 1 / 3.6724;
         convertRateBottomToTop = 3.6724;
 
-
-        getAllConversionRates();
-
         // Assign top and bottom text views
         currencyTopTv = findViewById(R.id.currency_top_tv);
         currencyBottomTv = findViewById(R.id.currency_bottom_tv);
@@ -88,7 +85,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         buttonCurrencyTop = findViewById(R.id.button_top_currency);
         buttonCurrencyBottom = findViewById(R.id.button_bottom_currency);
         buttonCurrencyTop.setOnClickListener(v -> {
-            retrieveLiveConversionRates();
+            load_conversionRates();
         });
         buttonCurrencyBottom.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -119,12 +116,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         assignId(buttonAC,R.id.button_ac);
         assignId(buttonDot,R.id.button_dot);
 
-//        buttonC.setOnLongClickListener(view -> {
-//            outputTv.setText(0);
-//            inputTv.setText(0);
-//            return true;
-//        });
-
         setInputTextView(true);
     }
 
@@ -151,9 +142,28 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         String buttonText = button.getText().toString();
         String current_input = inputTv.getText().toString();
 
-        // Change to top or bottom currency
-        if (button.equals(buttonCurrencyTop) || button.equals(buttonCurrencyBottom)) {
-            if (button.equals(buttonCurrencyTop)) {
+
+        // handle clears
+        if (buttonText.equals("AC")) {
+            // set top and bottom text views to '0'
+            current_input = "0";
+            currencyTopTv.setText("0");
+            currencyBottomTv.setText("0");
+        }
+        else if (buttonText.equals("C")) {
+            // remove 1 character from input text view
+            if (current_input.length() == 1) {
+                current_input = "0";
+                inputTv.setText("0");
+            } else {
+                current_input = current_input.substring(0, (current_input.length() - 1));
+                inputTv.setText(current_input);
+            }
+        }
+        // Handle swap
+        else if (buttonText.equals("S")) {
+            // swap numbers but keep currently selected in same position
+            if (bottomSelected) {
                 inputTv = currencyTopTv;
                 outputTv = currencyBottomTv;
                 topSelected = true;
@@ -164,68 +174,30 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 topSelected = false;
                 bottomSelected = true;
             }
-//            inputTv.setTextColor(0xFF000000);
-//            inputTv.setTextSize(50);
-//            outputTv.setTextColor(0xFF575757);
-//            outputTv.setTextSize(40);
-        }
-        // Output updating inputs
-        else {
-            // handle clears
-            if (buttonText.equals("AC")) {
-                // set top and bottom text views to '0'
-                current_input = "0";
-                currencyTopTv.setText("0");
-                currencyBottomTv.setText("0");
-            }
-            else if (buttonText.equals("C")) {
-                // remove 1 character from input text view
-                if (current_input.length() == 1) {
-                    current_input = "0";
-                    inputTv.setText("0");
-                } else {
-                    current_input = current_input.substring(0, (current_input.length() - 1));
-                    inputTv.setText(current_input);
-                }
-            }
-            // Handle swap
-            else if (buttonText.equals("S")) {
-                // swap numbers but keep currently selected in same position
-                if (bottomSelected) {
-                    inputTv = currencyTopTv;
-                    outputTv = currencyBottomTv;
-                    topSelected = true;
-                    bottomSelected = false;
-                } else {
-                    inputTv = currencyBottomTv;
-                    outputTv = currencyTopTv;
-                    topSelected = false;
-                    bottomSelected = true;
-                }
 //                inputTv.setTextColor(0xFF000000);
 //                inputTv.setTextSize(50);
 //                outputTv.setTextColor(0xFF575757);
 //                outputTv.setTextSize(40);
+        } else {
+            if (current_input.equals("0")) {
+                current_input = buttonText;
+                inputTv.setText(buttonText);
             } else {
-                if (current_input.equals("0")) {
-                    current_input = buttonText;
-                    inputTv.setText(buttonText);
-                } else {
-                    current_input += buttonText;
-                    inputTv.setText(current_input);
-                }
+                current_input += buttonText;
+                inputTv.setText(current_input);
             }
+        }
 
-            // Arithmetic on current input
-            String computed_input = current_input;
+        // Arithmetic on current input
+        String computed_input = current_input;
 
-            // Update output tv
+        // Update output tv
 
-            if (topSelected) {
-                outputTv.setText(convertCurrency(computed_input, convertRateTopToBottom));
-            } else {
-                outputTv.setText(convertCurrency(computed_input, convertRateBottomToTop));
-            }
+        if (topSelected) {
+            outputTv.setText(convertCurrency(computed_input, convertRateTopToBottom));
+        } else {
+            outputTv.setText(convertCurrency(computed_input, convertRateBottomToTop));
+        }
         }
     }
 
@@ -299,14 +271,25 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     /**
-     * TODO: Fully implement to store conversionRates
+     * Retrieves local conversion rates and sets "jsonConversionRatesWrapper"
+     * and "conversionRatesMap". Then tries to retrieve live conversion rates
+     * and update these variables.
+     */
+    void load_conversionRates(){
+        jsonConversionRatesWrapper = retrieveLocalConversionRates();
+        conversionRatesMap = jsonConversionRatesToMap(jsonConversionRatesWrapper);
+
+        retrieveLiveConversionRates();
+    }
+
+    /**
+     *
      * Currently retrieves conversion rates wrapper with conversion rates
      * stored in "rates".
      *
      * @return JSONObject wrapper of conversion rates
      */
-    JSONObject retrieveLiveConversionRates(){
-        final JSONObject[] curRatesWrapper = new JSONObject[1];
+    private void retrieveLiveConversionRates(){
         RequestQueue requestQueue = Volley.newRequestQueue(MainActivity.this);
         String baseUrl = "https://openexchangerates.org/api/latest.json?app_id=5bc0d18d478949309c7b5c9f550bbcce&base=" + BASE_CURRENCY;
 
@@ -315,17 +298,22 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 new Response.Listener<JSONObject>() {
                     @Override
                     public void onResponse(JSONObject response) {
-                        Date dateRecvTime;
+                        // Message of updated conversion rates
+                        long timestamp = 0;
                         try {
-                            curRatesWrapper[0] = new JSONObject(response.toString());
-                            long timestamp = response.getLong("timestamp");
-                            dateRecvTime = new Date(timestamp * 1000);
-
+                            timestamp = response.getLong("timestamp");
                         } catch (JSONException e) {
                             throw new RuntimeException(e);
                         }
+                        Date dateRecvTime = new Date(timestamp * 1000);
 
                         Toast.makeText(MainActivity.this, "Updated Conversion Rates at: " + dateRecvTime.toString(), Toast.LENGTH_LONG).show();
+
+                        //Update conversionRates
+                        storeConversionRates(response);
+                        jsonConversionRatesWrapper = response;
+                        conversionRatesMap = jsonConversionRatesToMap(jsonConversionRatesWrapper);
+
                     }
                 },
                 new Response.ErrorListener() {
@@ -340,8 +328,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         // Add the request to the RequestQueue.
         requestQueue.add(jsonConversionRatesRequest);
-
-        return curRatesWrapper[0];
     }
 
     /**
@@ -351,9 +337,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
      *
      * @return JSONObject with conversion rates in "rates"
      */
-    JSONObject retrieveLocalConversionRates() {
+    private JSONObject retrieveLocalConversionRates() {
         JSONObject jsonReturnVal;
-        String curLine = "";
         StringBuilder jsonString = new StringBuilder();
 
         File inFile = new File(getApplicationContext().getFilesDir() + CONVERSION_RATES_LOCAL_FILE);
@@ -362,7 +347,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             try {
                 BufferedReader fileReader = Files.newBufferedReader(inFile.toPath());
 
-                while (! (curLine = fileReader.readLine()).isEmpty()) {
+                for (String curLine = fileReader.readLine(); curLine != null; curLine = fileReader.readLine()) {
                     jsonString.append(curLine);
                 }
 
@@ -390,7 +375,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
      *
      * @param jsonConversionRatesWrapped a json with conversion rates
      */
-    void storeConversionRates(JSONObject jsonConversionRatesWrapped){
+    private void storeConversionRates(JSONObject jsonConversionRatesWrapped){
         Toast.makeText(MainActivity.this, getApplicationContext().getFilesDir() + CONVERSION_RATES_LOCAL_FILE, Toast.LENGTH_LONG).show();
         File outFile = new File(getApplicationContext().getFilesDir() + CONVERSION_RATES_LOCAL_FILE);
 
@@ -418,21 +403,30 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     /**
+     * Turns jsonConversionRatesWrapped containing conversion rates under
+     * "rates" key into a map of conversion rates stored in the json. If
+     * "rates" does not exists will return an empty map.
      *
-     *
-     * @param jsonConversionRatesWrapper:
-     * @return
+     * @param jsonConversionRatesWrapped:
+     * @return Map<String, Double>: containing conversion rates
      */
-    Map<String, Double> jsonConversionRatesToMap(JSONObject jsonConversionRatesWrapper){
+    private Map<String, Double> jsonConversionRatesToMap(JSONObject jsonConversionRatesWrapped){
         // Remove wrapper and get "rates"
         JSONObject jsonConversionRatesNoWrapper;
-        try {
-            jsonConversionRatesNoWrapper = jsonConversionRatesWrapper.getJSONObject("rates");
-        } catch (JSONException e) {
-            throw new RuntimeException(e);
+        Map<String, Double> conversionRatesMap;
+
+        if (jsonConversionRatesWrapped.has("rates")){ /* Contains conversion rates */
+            try {
+                jsonConversionRatesNoWrapper = jsonConversionRatesWrapped.getJSONObject("rates");
+            } catch (JSONException e) {
+                throw new RuntimeException(e);
+            }
+        } else { /* Does not contain conversion rates */
+            conversionRatesMap = new HashMap<>();
+            return conversionRatesMap;
         }
 
-        Map<String, Double> conversionRatesMap = new HashMap<String, Double>();
+        conversionRatesMap = new HashMap<String, Double>();
 
         // Put all of data into Map<String, Double>
         for (Iterator<String> it = jsonConversionRatesNoWrapper.keys(); it.hasNext(); ) {
